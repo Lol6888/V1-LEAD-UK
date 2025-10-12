@@ -1,5 +1,5 @@
 // !!! QUAN TRỌNG: Dán URL ứng dụng web bạn đã sao chép ở Bước 2 vào đây
-const API_URL = 'AKfycbxHJnLwuBvEqV4hH2JVkKQp9sX4Pze65MgxRvPmmT2qh83ApJAIVT4XVPb0Jd0QG5c';
+const API_URL = AKfycbxHJnLwuBvEqV4hH2JVkKQp9sX4Pze65MgxRvPmmT2qh83ApJAIVT4XVPb0Jd0QG5c;
 
 let allCustomers = []; // Biến để lưu trữ toàn bộ dữ liệu khách hàng
 
@@ -137,4 +137,5 @@ function updateCounts() {
 saveButton.addEventListener('click', saveChanges);
 
 // Chạy hàm fetchCustomers khi trang được tải lần đầu
+
 document.addEventListener('DOMContentLoaded', fetchCustomers);
