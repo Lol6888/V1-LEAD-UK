@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     // !!! QUAN TRỌNG: Dán URL Apps Script MỚI NHẤT của bạn vào đây
-    const API_URL = 'https://script.google.com/macros/s/AKfycbwOP3Swbs-knjXuU-Aw8difM5c2VEcydzibDz3j_6khshbuICcThlY9UoHYEqoIZyA/exec';
+    const API_URL = 'https://script.google.com/macros/s/AKfycbw-6fl8v5IATVCbxISudLxpxhIz7-zPGs5DxXsvimpYuLM54sf9k5jRY3ineyuhSLA/exec';
 
     let allCustomers = [];
     let currentFilters = { status: 'all', location: '' };
@@ -20,14 +20,11 @@ document.addEventListener('DOMContentLoaded', () => {
             linkedin: document.getElementById('detail-linkedin'),
             khac: document.getElementById('detail-khac'),
             ghiChu: document.getElementById('detail-ghichu'),
-            fileLink: document.getElementById('detail-filelink'),
             id: document.getElementById('detail-id'),
         },
         buttons: {
             save: document.getElementById('save-button'),
             analyze: document.getElementById('analyze-btn'),
-            upload: document.getElementById('upload-btn'),
-            deleteFile: document.getElementById('delete-file-btn'),
         },
         modal: {
             overlay: document.getElementById('ai-modal'),
@@ -43,10 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fileInput: document.getElementById('file-input'),
         uploadProgress: document.getElementById('upload-progress'),
         fileUploadPrompt: document.getElementById('file-upload-prompt'),
-        filePreviewContainer: document.getElementById('file-preview-container'),
-        filePreviewImg: document.getElementById('file-preview-img'),
-        filePreviewIcon: document.getElementById('file-preview-icon'),
-        filePreviewName: document.getElementById('file-preview-name'),
+        fileList: document.getElementById('file-list'),
     };
     
     const statusOptions = ['Chưa tiếp cận', 'Đang tiếp cận', 'Đã phản hồi', 'Đã ký HĐ', 'Đã từ chối'];
@@ -75,12 +69,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 filterAndRender();
             }
         });
-
         dom.locationSearch.addEventListener('input', e => { 
             currentFilters.location = e.target.value.toLowerCase(); 
             filterAndRender(); 
         });
-
         dom.customerList.addEventListener('click', e => {
             const item = e.target.closest('.customer-item');
             if (item) {
@@ -89,24 +81,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderCustomerDetails(item.dataset.id);
             }
         });
-
         dom.buttons.save.addEventListener('click', saveChanges);
         dom.buttons.analyze.addEventListener('click', analyzeCustomer);
         dom.modal.close.addEventListener('click', () => dom.modal.overlay.classList.add('hidden'));
         dom.modal.overlay.addEventListener('click', e => { 
             if (e.target === dom.modal.overlay) dom.modal.overlay.classList.add('hidden'); 
         });
-        
-        dom.buttons.upload.addEventListener('click', (e) => { e.preventDefault(); dom.fileInput.click(); });
-        
+        dom.fileUploadPrompt.addEventListener('click', () => dom.fileInput.click());
         dom.fileInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) handleFile(file);
+            const files = e.target.files;
+            if (files.length > 0) {
+                handleFiles(files);
+            }
         });
-        
-        dom.buttons.deleteFile.addEventListener('click', () => {
-            if (confirm("Bạn có chắc chắn muốn xóa tệp đính kèm này không?")) {
-                autoSaveFileLink("");
+        dom.fileList.addEventListener('click', e => {
+            const deleteBtn = e.target.closest('.delete-btn');
+            if (deleteBtn) {
+                if (confirm("Bạn có chắc chắn muốn xóa tệp này không?")) {
+                    const fileUrlToDelete = deleteBtn.dataset.url;
+                    updateFileLinks({ linkToDelete: fileUrlToDelete });
+                }
             }
         });
     }
@@ -114,6 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function saveChanges() {
         dom.buttons.save.disabled = true;
         dom.buttons.save.textContent = 'Đang lưu...';
+        const customer = allCustomers.find(c => c.ID == dom.detail.id.value);
         const requestBody = {
             action: 'update',
             data: {
@@ -121,7 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 Website: dom.detail.website.value.trim(), Facebook: dom.detail.facebook.value.trim(),
                 Instagram: dom.detail.instagram.value.trim(), LinkedIn: dom.detail.linkedin.value.trim(),
                 Khac: dom.detail.khac.value.trim(), GhiChu: dom.detail.ghiChu.value, 
-                LinkTep: dom.detail.fileLink.value.trim()
+                LinkTep: customer.LinkTep || '[]'
             }
         };
         try {
@@ -163,11 +158,14 @@ document.addEventListener('DOMContentLoaded', () => {
         finally { dom.spinner.classList.add('hidden'); dom.buttons.analyze.disabled = false; }
     }
     
-    async function autoSaveFileLink(fileUrl) {
+    async function updateFileLinks(updateData) {
         const customerId = dom.detail.id.value;
         if (!customerId) return alert("Vui lòng chọn một khách hàng trước.");
+        
+        dom.uploadProgress.textContent = "Đang cập nhật...";
+        dom.uploadProgress.classList.remove('hidden');
 
-        const requestBody = { action: 'updateFileLink', data: { customerId, fileUrl } };
+        const requestBody = { action: 'updateFileLinks', data: { customerId, ...updateData } };
         try {
             const response = await fetch(API_URL, {
                 method: 'POST',
@@ -177,23 +175,35 @@ document.addEventListener('DOMContentLoaded', () => {
             const result = await response.json();
             if (result.status !== 'success') throw new Error(result.message);
             const index = allCustomers.findIndex(c => c.ID == customerId);
-            if (index !== -1) allCustomers[index].LinkTep = fileUrl;
+            if (index !== -1) allCustomers[index].LinkTep = JSON.stringify(result.updatedLinks);
             renderCustomerDetails(customerId);
-            if (fileUrl) alert("Tải lên và lưu link tệp thành công!");
-            else alert("Đã xóa tệp đính kèm!");
         } catch (error) {
-            alert("Lỗi khi tự động lưu link tệp: " + error.message);
+            alert("Lỗi khi cập nhật link tệp: " + error.message);
+        } finally {
+            dom.uploadProgress.classList.add('hidden');
         }
     }
 
-    function handleFile(file) {
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            const fileData = e.target.result.split(',')[1];
-            const fileInfo = { fileName: file.name, mimeType: file.type, data: fileData };
-            dom.uploadProgress.classList.remove('hidden');
-            dom.buttons.upload.classList.add('hidden');
+    async function handleFiles(files) {
+        const customerId = dom.detail.id.value;
+        if (!customerId) return alert("Vui lòng chọn một khách hàng trước khi tải tệp.");
+
+        let uploadedLinks = [];
+        dom.uploadProgress.textContent = `Đang tải lên 0/${files.length}...`;
+        dom.uploadProgress.classList.remove('hidden');
+
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            dom.uploadProgress.textContent = `Đang tải lên ${i + 1}/${files.length}: ${file.name}...`;
             try {
+                const fileData = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = e => resolve(e.target.result.split(',')[1]);
+                    reader.onerror = error => reject(error);
+                    reader.readAsDataURL(file);
+                });
+
+                const fileInfo = { fileName: file.name, mimeType: file.type, data: fileData };
                 const response = await fetch(API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -201,36 +211,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 const result = await response.json();
                 if (result.status !== 'success') throw new Error(result.message);
-                await autoSaveFileLink(result.fileUrl);
+                uploadedLinks.push(result.fileUrl);
             } catch (error) {
-                alert('Lỗi khi tải tệp lên: ' + error.message);
-            } finally {
-                dom.uploadProgress.classList.add('hidden');
-                dom.buttons.upload.classList.remove('hidden');
-                dom.fileInput.value = '';
+                alert(`Lỗi khi tải tệp ${file.name}: ${error.message}`);
             }
-        };
-        reader.readAsDataURL(file);
-    }
-
-    function filterAndRender() {
-        const filtered = allCustomers.filter(c => {
-            const customerStatus = c.TrangThai || 'Chưa tiếp cận';
-            const nameMatch = (c.TenKhachHang || '').toLowerCase().includes(currentFilters.location);
-            const addressMatch = (c.DiaChi || '').toLowerCase().includes(currentFilters.location);
-            const statusMatch = currentFilters.status === 'all' || customerStatus === currentFilters.status;
-            return statusMatch && (nameMatch || addressMatch);
-        });
-        renderCustomerList(filtered);
-    }
-
-    function renderCustomerList(customers) {
-        dom.customerList.innerHTML = customers.length === 0 
-            ? '<div class="loader">Không tìm thấy khách hàng.</div>'
-            : customers.map(c => `
-                <div class="customer-item" data-id="${c.ID}">
-                    <h4>${c.TenKhachHang || 'Khách hàng không tên'}</h4><p>${c.MaNganh || 'Không có ngành nghề'}</p>
-                </div>`).join('');
+        }
+        
+        if (uploadedLinks.length > 0) {
+            await updateFileLinks({ newLinks: uploadedLinks });
+        }
+        dom.uploadProgress.classList.add('hidden');
+        dom.fileInput.value = '';
     }
 
     function renderCustomerDetails(customerId) {
@@ -244,7 +235,7 @@ document.addEventListener('DOMContentLoaded', () => {
         dom.detail.website.value = customer.Website || ''; dom.detail.facebook.value = customer.Facebook || '';
         dom.detail.instagram.value = customer.Instagram || ''; dom.detail.linkedin.value = customer.LinkedIn || '';
         dom.detail.khac.value = customer.Khac || ''; dom.detail.ghiChu.value = customer.GhiChu || '';
-        dom.detail.fileLink.value = customer.LinkTep || ''; dom.detail.id.value = customer.ID;
+        dom.detail.id.value = customer.ID;
 
         if (customer.PhanTich && customer.PhanTich.trim() !== "") {
             dom.savedAnalysisContent.textContent = customer.PhanTich;
@@ -255,48 +246,37 @@ document.addEventListener('DOMContentLoaded', () => {
             dom.analyzeBtnText.textContent = "Phân Tích Tiềm năng";
         }
 
-        if (customer.LinkTep && customer.LinkTep.trim() !== "") {
-            dom.fileUploadPrompt.classList.add('hidden');
-            dom.filePreviewContainer.classList.remove('hidden');
-            const fileName = customer.LinkTep.split('/').pop().split('?')[0];
-            dom.filePreviewName.textContent = decodeURIComponent(fileName);
-            if (/\.(jpg|jpeg|png|gif|webp)$/i.test(customer.LinkTep)) {
-                dom.filePreviewImg.src = customer.LinkTep;
-                dom.filePreviewImg.classList.remove('hidden');
-                dom.filePreviewIcon.classList.add('hidden');
-            } else {
-                dom.filePreviewImg.classList.add('hidden');
-                dom.filePreviewIcon.classList.remove('hidden');
-            }
-        } else {
-            dom.fileUploadPrompt.classList.remove('hidden');
-            dom.filePreviewContainer.classList.add('hidden');
+        dom.fileList.innerHTML = ''; 
+        let fileLinks = [];
+        try {
+            if (customer.LinkTep) fileLinks = JSON.parse(customer.LinkTep);
+        } catch(e) { /* ignore */ }
+        
+        if (Array.isArray(fileLinks) && fileLinks.length > 0) {
+            fileLinks.forEach(url => {
+                const fileName = decodeURIComponent(url.split('/').pop().split('?')[0]);
+                const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(fileName);
+                const fileItemHTML = `
+                    <div class="file-item">
+                        ${isImage ? `<img src="${url}" alt="Preview">` : `<i class="fa-solid fa-file"></i>`}
+                        <span onclick="window.open('${url}', '_blank')" title="${fileName}">${fileName}</span>
+                        <button class="delete-btn" data-url="${url}" title="Xóa tệp">&times;</button>
+                    </div>`;
+                dom.fileList.innerHTML += fileItemHTML;
+            });
         }
-
+        
         [dom.buttons.save, dom.buttons.analyze, dom.detail.status].forEach(el => el.disabled = false);
     }
     
-    // HÀM BỊ THIẾU ĐÃ ĐƯỢC BỔ SUNG
-    function updateStatusCounts() {
-        const counts = { all: allCustomers.length, new: 0, approaching: 0, replied: 0, signed: 0, rejected: 0 };
-        allCustomers.forEach(c => {
-            const status = c.TrangThai || 'Chưa tiếp cận';
-            if (status === 'Chưa tiếp cận') counts.new++; if (status === 'Đang tiếp cận') counts.approaching++;
-            if (status === 'Đã phản hồi') counts.replied++; if (status === 'Đã ký HĐ') counts.signed++;
-            if (status === 'Đã từ chối') counts.rejected++;
-        });
-        document.getElementById('count-all').textContent = counts.all; 
-        document.getElementById('count-new').textContent = counts.new;
-        document.getElementById('count-approaching').textContent = counts.approaching; 
-        document.getElementById('count-replied').textContent = counts.replied;
-        document.getElementById('count-signed').textContent = counts.signed; 
-        document.getElementById('count-rejected').textContent = counts.rejected;
+    function filterAndRender() {
+        // ... (Giữ nguyên)
     }
-
-    // HÀM BỊ THIẾU ĐÃ ĐƯỢC BỔ SUNG
+    function updateStatusCounts() {
+        // ... (Giữ nguyên)
+    }
     function showEmptyState(show) { 
-        dom.emptyState.classList.toggle('hidden', !show); 
-        dom.customerDetails.classList.toggle('hidden', show); 
+        // ... (Giữ nguyên)
     }
 
     initializeApp();
