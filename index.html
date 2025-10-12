@@ -24,13 +24,15 @@
             </nav>
             <section class="filters">
                 <h3>Lọc Khách hàng</h3>
+                <select id="industry-filter">
+                    <option value="">Tất cả ngành nghề</option>
+                </select>
                 <input type="text" id="location-search" placeholder="Tìm theo tên, địa chỉ...">
             </section>
             <div class="list-container">
                  <div id="customer-list" class="customer-list"><div class="loader">Đang tải dữ liệu...</div></div>
             </div>
-
-        </aside>
+            </aside>
 
         <main class="right-panel">
             <div id="customer-details" class="customer-details-content hidden">
@@ -97,4 +99,3 @@
     <script src="./script.js"></script>
 </body>
 </html>
-
