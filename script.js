@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const API_URL = 'https://script.google.com/macros/s/AKfycbzHu-mbqV9yj-aTnxlSav4NLuTUQ2Reo-VUoLw_0IshiaSBETD-ixNdOeuORQu_Yo8/exec';
 
     let allCustomers = [];
-    let currentFilters = { status: 'all', location: '' };
+    let currentFilters = { status: 'all', location: '', industry: '' };
 
     const dom = {
         customerList: document.getElementById('customer-list'),
@@ -34,6 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
         spinner: document.querySelector('.spinner'),
         statusNav: document.querySelector('.status-nav'),
         locationSearch: document.getElementById('location-search'),
+        industryFilter: document.getElementById('industry-filter'),
         savedAnalysisContainer: document.getElementById('saved-analysis-container'),
         savedAnalysisContent: document.getElementById('saved-analysis-content'),
         analyzeBtnText: document.getElementById('analyze-btn-text'),
@@ -50,12 +51,24 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch(API_URL);
             if (!response.ok) throw new Error('Lỗi mạng hoặc API không hợp lệ.');
             allCustomers = await response.json();
+            populateIndustryFilter();
             setupEventListeners();
             updateStatusCounts();
             filterAndRender();
         } catch (error) {
             dom.customerList.innerHTML = `<div class="loader" style="color: red;">Không thể tải dữ liệu: ${error.message}</div>`;
         }
+    }
+
+    function populateIndustryFilter() {
+        const industries = [...new Set(allCustomers.map(c => c.MaNganh).filter(Boolean))];
+        industries.sort();
+        industries.forEach(industry => {
+            const option = document.createElement('option');
+            option.value = industry;
+            option.textContent = industry;
+            dom.industryFilter.appendChild(option);
+        });
     }
 
     function setupEventListeners() {
@@ -90,9 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
         dom.fileUploadPrompt.addEventListener('click', () => dom.fileInput.click());
         dom.fileInput.addEventListener('change', (e) => {
             const files = e.target.files;
-            if (files.length > 0) {
-                handleFiles(files);
-            }
+            if (files.length > 0) handleFiles(files);
         });
         dom.fileList.addEventListener('click', e => {
             const deleteBtn = e.target.closest('.delete-btn');
@@ -102,6 +113,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     updateFileLinks({ linkToDelete: fileUrlToDelete });
                 }
             }
+        });
+        dom.industryFilter.addEventListener('change', e => {
+            currentFilters.industry = e.target.value;
+            filterAndRender();
         });
     }
 
@@ -161,10 +176,8 @@ document.addEventListener('DOMContentLoaded', () => {
     async function updateFileLinks(updateData) {
         const customerId = dom.detail.id.value;
         if (!customerId) return alert("Vui lòng chọn một khách hàng trước.");
-        
         dom.uploadProgress.textContent = "Đang cập nhật...";
         dom.uploadProgress.classList.remove('hidden');
-
         const requestBody = { action: 'updateFileLinks', data: { customerId, ...updateData } };
         try {
             const response = await fetch(API_URL, {
@@ -187,11 +200,9 @@ document.addEventListener('DOMContentLoaded', () => {
     async function handleFiles(files) {
         const customerId = dom.detail.id.value;
         if (!customerId) return alert("Vui lòng chọn một khách hàng trước khi tải tệp.");
-
         let uploadedLinks = [];
         dom.uploadProgress.textContent = `Đang tải lên 0/${files.length}...`;
         dom.uploadProgress.classList.remove('hidden');
-
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
             dom.uploadProgress.textContent = `Đang tải lên ${i + 1}/${files.length}: ${file.name}...`;
@@ -202,7 +213,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     reader.onerror = error => reject(error);
                     reader.readAsDataURL(file);
                 });
-
                 const fileInfo = { fileName: file.name, mimeType: file.type, data: fileData };
                 const response = await fetch(API_URL, {
                     method: 'POST',
@@ -216,7 +226,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert(`Lỗi khi tải tệp ${file.name}: ${error.message}`);
             }
         }
-        
         if (uploadedLinks.length > 0) {
             await updateFileLinks({ newLinks: uploadedLinks });
         }
@@ -248,9 +257,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         dom.fileList.innerHTML = ''; 
         let fileObjects = [];
-        try {
-            if (customer.LinkTep) fileObjects = JSON.parse(customer.LinkTep);
-        } catch(e) { /* ignore */ }
+        try { if (customer.LinkTep) fileObjects = JSON.parse(customer.LinkTep); } catch(e) { /* ignore */ }
         
         if (Array.isArray(fileObjects) && fileObjects.length > 0) {
             fileObjects.forEach(linkObj => {
@@ -274,8 +281,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const customerStatus = c.TrangThai || 'Chưa tiếp cận';
             const nameMatch = (c.TenKhachHang || '').toLowerCase().includes(currentFilters.location);
             const addressMatch = (c.DiaChi || '').toLowerCase().includes(currentFilters.location);
+            const searchMatch = nameMatch || addressMatch;
             const statusMatch = currentFilters.status === 'all' || customerStatus === currentFilters.status;
-            return statusMatch && (nameMatch || addressMatch);
+            const industryMatch = currentFilters.industry === '' || c.MaNganh === currentFilters.industry;
+            return statusMatch && searchMatch && industryMatch;
         });
         renderCustomerList(filtered);
     }
@@ -312,4 +321,3 @@ document.addEventListener('DOMContentLoaded', () => {
 
     initializeApp();
 });
-
