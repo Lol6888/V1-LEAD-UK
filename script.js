@@ -60,10 +60,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // SỬA LỖI: Nâng cấp hàm để xử lý chuỗi có nhiều ngành nghề
     function populateIndustryFilter() {
-        const industries = [...new Set(allCustomers.map(c => c.MaNganh).filter(Boolean))];
-        industries.sort();
-        industries.forEach(industry => {
+        const allIndustryStrings = allCustomers
+            .map(c => c.MaNganh)      // Lấy tất cả chuỗi ngành nghề
+            .filter(Boolean);       // Bỏ qua các ô trống
+
+        // Tách các chuỗi bằng dấu ';', cắt bỏ khoảng trắng, và tạo một mảng duy nhất
+        const individualIndustries = allIndustryStrings.flatMap(maNganh =>
+            maNganh.split(';').map(s => s.trim())
+        );
+
+        const uniqueIndustries = [...new Set(individualIndustries)].filter(Boolean); // Lấy giá trị duy nhất và bỏ chuỗi rỗng
+        uniqueIndustries.sort(); // Sắp xếp theo alphabet
+
+        uniqueIndustries.forEach(industry => {
             const option = document.createElement('option');
             option.value = industry;
             option.textContent = industry;
@@ -276,6 +287,7 @@ document.addEventListener('DOMContentLoaded', () => {
         [dom.buttons.save, dom.buttons.analyze, dom.detail.status].forEach(el => el.disabled = false);
     }
     
+    // SỬA LỖI: Cập nhật hàm lọc để xử lý chuỗi có nhiều ngành nghề
     function filterAndRender() {
         const filtered = allCustomers.filter(c => {
             const customerStatus = c.TrangThai || 'Chưa tiếp cận';
@@ -283,7 +295,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const addressMatch = (c.DiaChi || '').toLowerCase().includes(currentFilters.location);
             const searchMatch = nameMatch || addressMatch;
             const statusMatch = currentFilters.status === 'all' || customerStatus === currentFilters.status;
-            const industryMatch = currentFilters.industry === '' || c.MaNganh === currentFilters.industry;
+            // Kiểm tra xem chuỗi MaNganh có chứa ngành nghề được chọn không
+            const industryMatch = currentFilters.industry === '' || (c.MaNganh && c.MaNganh.includes(currentFilters.industry));
+            
             return statusMatch && searchMatch && industryMatch;
         });
         renderCustomerList(filtered);
