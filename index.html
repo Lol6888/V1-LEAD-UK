@@ -12,12 +12,8 @@
         <aside class="left-panel">
             <header class="left-panel__header">
                 <h2>Phân tích Tiềm năng Khách hàng</h2>
-                <div class="lang-switcher">
-                    <button>EN</button>
-                    <button class="active">VI</button>
-                </div>
+                <div class="lang-switcher"><button>EN</button><button class="active">VI</button></div>
             </header>
-
             <nav class="status-nav">
                 <a href="#" class="status-item active" data-status="all">Tất cả Khách hàng <span class="count" id="count-all">0</span></a>
                 <a href="#" class="status-item" data-status="Chưa tiếp cận">Chưa tiếp cận <span class="count" id="count-new">0</span></a>
@@ -26,19 +22,14 @@
                 <a href="#" class="status-item" data-status="Đã ký HĐ">Đã ký HĐ <span class="count" id="count-signed">0</span></a>
                 <a href="#" class="status-item" data-status="Đã từ chối">Đã từ chối <span class="count" id="count-rejected">0</span></a>
             </nav>
-
             <section class="filters">
                 <h3>Lọc Khách hàng</h3>
                 <input type="text" id="location-search" placeholder="Tìm theo tên, địa chỉ...">
             </section>
-            
             <div class="list-container">
                  <div id="customer-list" class="customer-list"><div class="loader">Đang tải dữ liệu...</div></div>
             </div>
-
-            <footer class="left-panel__footer">
-                <button class="btn-reset"><i class="fa-solid fa-trash"></i> Xóa dữ liệu & Bắt đầu lại</button>
-            </footer>
+            <footer class="left-panel__footer"><button class="btn-reset"><i class="fa-solid fa-trash"></i> Xóa dữ liệu & Bắt đầu lại</button></footer>
         </aside>
 
         <main class="right-panel">
@@ -53,7 +44,6 @@
                         <button id="save-button" class="btn-primary" disabled>Lưu Thay đổi</button>
                     </div>
                 </header>
-
                 <div class="details-form">
                     <section class="form-section">
                         <h3>Hiện diện Trực tuyến</h3>
@@ -70,12 +60,18 @@
                         <div class="form-group"><label for="detail-ghichu">Ghi chú</label><textarea id="detail-ghichu"></textarea></div>
                         <div class="form-group">
                             <label>Tệp đính kèm</label>
-                            <div id="file-drop-zone" class="attachment-area">
-                                <span id="file-link-display">Kéo và thả tệp vào đây hoặc nhấp để chọn</span>
-                                <button id="upload-btn" class="btn-secondary"><i class="fa-solid fa-upload"></i> Tải lên Tệp</button>
-                                <input type="file" id="file-input" class="hidden">
+                            <div id="file-upload-prompt" class="attachment-area">
+                                <span>Kéo và thả tệp vào đây hoặc nhấp để chọn</span>
+                                <button id="upload-btn" class="btn-secondary"><i class="fa-solid fa-upload"></i> Tải lên</button>
                                 <div id="upload-progress" class="hidden">Đang tải lên...</div>
                             </div>
+                            <div id="file-preview-container" class="file-preview hidden">
+                                <img id="file-preview-img" src="" alt="Preview">
+                                <i id="file-preview-icon" class="fa-solid fa-file"></i>
+                                <span id="file-preview-name"></span>
+                                <button id="delete-file-btn" class="delete-btn" title="Xóa tệp">&times;</button>
+                            </div>
+                            <input type="file" id="file-input" class="hidden">
                             <input type="hidden" id="detail-filelink">
                         </div>
                     </section>
@@ -105,7 +101,6 @@
             <div id="ai-result" class="ai-result-content"></div>
         </div>
     </div>
-
     <script src="./script.js"></script>
 </body>
 </html>
