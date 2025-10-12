@@ -68,11 +68,28 @@
                     <section class="form-section">
                         <h3>Ghi chú & Tệp đính kèm</h3>
                         <div class="form-group"><label for="detail-ghichu">Ghi chú</label><textarea id="detail-ghichu"></textarea></div>
-                        <div class="form-group"><label for="detail-filelink">Link Tệp đính kèm</label><input type="text" id="detail-filelink"></div>
+                        <div class="form-group">
+                            <label>Tệp đính kèm</label>
+                            <div id="file-drop-zone" class="attachment-area">
+                                <span id="file-link-display">Kéo và thả tệp vào đây hoặc nhấp để chọn</span>
+                                <button id="upload-btn" class="btn-secondary"><i class="fa-solid fa-upload"></i> Tải lên Tệp</button>
+                                <input type="file" id="file-input" class="hidden">
+                                <div id="upload-progress" class="hidden">Đang tải lên...</div>
+                            </div>
+                            <input type="hidden" id="detail-filelink">
+                        </div>
                     </section>
                     <section class="form-section">
                         <h3>Phân tích Chiến lược</h3>
-                        <button class="btn-primary" id="analyze-btn" disabled><i class="fa-solid fa-wand-magic-sparkles"></i> Phân tích Tiềm năng<span class="spinner hidden"></span></button>
+                        <div id="saved-analysis-container" class="saved-analysis hidden">
+                            <h4>Phân tích đã lưu:</h4>
+                            <pre id="saved-analysis-content"></pre>
+                        </div>
+                        <button class="btn-primary" id="analyze-btn" disabled>
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> 
+                            <span id="analyze-btn-text">Phân tích Tiềm năng</span>
+                            <span class="spinner hidden"></span>
+                        </button>
                     </section>
                 </div>
                 <input type="hidden" id="detail-id">
