@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     // !!! QUAN TRỌNG: Dán URL Apps Script MỚI NHẤT của bạn vào đây
-    const API_URL = 'https://script.google.com/macros/s/AKfycbw-6fl8v5IATVCbxISudLxpxhIz7-zPGs5DxXsvimpYuLM54sf9k5jRY3ineyuhSLA/exec';
+    const API_URL = 'https://script.google.com/macros/s/AKfycbzcieK2vqOR9Wur7vJJeoOzTbDWRSa1_9L5tB-xsM7GCfcLpfOIaU9fyIIv2ESGaf0/exec';
 
     let allCustomers = [];
     let currentFilters = { status: 'all', location: '' };
@@ -69,12 +69,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 filterAndRender();
             }
         });
-
         dom.locationSearch.addEventListener('input', e => { 
             currentFilters.location = e.target.value.toLowerCase(); 
             filterAndRender(); 
         });
-
         dom.customerList.addEventListener('click', e => {
             const item = e.target.closest('.customer-item');
             if (item) {
@@ -83,23 +81,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderCustomerDetails(item.dataset.id);
             }
         });
-
         dom.buttons.save.addEventListener('click', saveChanges);
         dom.buttons.analyze.addEventListener('click', analyzeCustomer);
         dom.modal.close.addEventListener('click', () => dom.modal.overlay.classList.add('hidden'));
         dom.modal.overlay.addEventListener('click', e => { 
             if (e.target === dom.modal.overlay) dom.modal.overlay.classList.add('hidden'); 
         });
-        
         dom.fileUploadPrompt.addEventListener('click', () => dom.fileInput.click());
-
         dom.fileInput.addEventListener('change', (e) => {
             const files = e.target.files;
             if (files.length > 0) {
                 handleFiles(files);
             }
         });
-
         dom.fileList.addEventListener('click', e => {
             const deleteBtn = e.target.closest('.delete-btn');
             if (deleteBtn) {
@@ -217,7 +211,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 const result = await response.json();
                 if (result.status !== 'success') throw new Error(result.message);
-                uploadedLinks.push(result.fileUrl);
+                uploadedLinks.push(result.fileInfo);
             } catch (error) {
                 alert(`Lỗi khi tải tệp ${file.name}: ${error.message}`);
             }
@@ -253,19 +247,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         dom.fileList.innerHTML = ''; 
-        let fileLinks = [];
+        let fileObjects = [];
         try {
-            if (customer.LinkTep) fileLinks = JSON.parse(customer.LinkTep);
+            if (customer.LinkTep) fileObjects = JSON.parse(customer.LinkTep);
         } catch(e) { /* ignore */ }
         
-        if (Array.isArray(fileLinks) && fileLinks.length > 0) {
-            fileLinks.forEach(url => {
-                const fileName = decodeURIComponent(url.split('/').pop().split('?')[0]);
-                const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(fileName);
+        if (Array.isArray(fileObjects) && fileObjects.length > 0) {
+            fileObjects.forEach(linkObj => {
+                const { url, name } = linkObj;
+                const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(name);
                 const fileItemHTML = `
                     <div class="file-item">
                         ${isImage ? `<img src="${url}" alt="Preview">` : `<i class="fa-solid fa-file"></i>`}
-                        <span onclick="window.open('${url}', '_blank')" title="${fileName}">${fileName}</span>
+                        <span onclick="window.open('${url}', '_blank')" title="${name}">${name}</span>
                         <button class="delete-btn" data-url="${url}" title="Xóa tệp">&times;</button>
                     </div>`;
                 dom.fileList.innerHTML += fileItemHTML;
