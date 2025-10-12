@@ -69,10 +69,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 filterAndRender();
             }
         });
+
         dom.locationSearch.addEventListener('input', e => { 
             currentFilters.location = e.target.value.toLowerCase(); 
             filterAndRender(); 
         });
+
         dom.customerList.addEventListener('click', e => {
             const item = e.target.closest('.customer-item');
             if (item) {
@@ -81,19 +83,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderCustomerDetails(item.dataset.id);
             }
         });
+
         dom.buttons.save.addEventListener('click', saveChanges);
         dom.buttons.analyze.addEventListener('click', analyzeCustomer);
         dom.modal.close.addEventListener('click', () => dom.modal.overlay.classList.add('hidden'));
         dom.modal.overlay.addEventListener('click', e => { 
             if (e.target === dom.modal.overlay) dom.modal.overlay.classList.add('hidden'); 
         });
+        
         dom.fileUploadPrompt.addEventListener('click', () => dom.fileInput.click());
+
         dom.fileInput.addEventListener('change', (e) => {
             const files = e.target.files;
             if (files.length > 0) {
                 handleFiles(files);
             }
         });
+
         dom.fileList.addEventListener('click', e => {
             const deleteBtn = e.target.closest('.delete-btn');
             if (deleteBtn) {
@@ -245,7 +251,7 @@ document.addEventListener('DOMContentLoaded', () => {
             dom.savedAnalysisContainer.classList.add('hidden');
             dom.analyzeBtnText.textContent = "Phân Tích Tiềm năng";
         }
-
+        
         dom.fileList.innerHTML = ''; 
         let fileLinks = [];
         try {
@@ -270,13 +276,44 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function filterAndRender() {
-        // ... (Giữ nguyên)
+        const filtered = allCustomers.filter(c => {
+            const customerStatus = c.TrangThai || 'Chưa tiếp cận';
+            const nameMatch = (c.TenKhachHang || '').toLowerCase().includes(currentFilters.location);
+            const addressMatch = (c.DiaChi || '').toLowerCase().includes(currentFilters.location);
+            const statusMatch = currentFilters.status === 'all' || customerStatus === currentFilters.status;
+            return statusMatch && (nameMatch || addressMatch);
+        });
+        renderCustomerList(filtered);
     }
+    
+    function renderCustomerList(customers) {
+        dom.customerList.innerHTML = customers.length === 0 
+            ? '<div class="loader">Không tìm thấy khách hàng.</div>'
+            : customers.map(c => `
+                <div class="customer-item" data-id="${c.ID}">
+                    <h4>${c.TenKhachHang || 'Khách hàng không tên'}</h4><p>${c.MaNganh || 'Không có ngành nghề'}</p>
+                </div>`).join('');
+    }
+
     function updateStatusCounts() {
-        // ... (Giữ nguyên)
+        const counts = { all: allCustomers.length, new: 0, approaching: 0, replied: 0, signed: 0, rejected: 0 };
+        allCustomers.forEach(c => {
+            const status = c.TrangThai || 'Chưa tiếp cận';
+            if (status === 'Chưa tiếp cận') counts.new++; if (status === 'Đang tiếp cận') counts.approaching++;
+            if (status === 'Đã phản hồi') counts.replied++; if (status === 'Đã ký HĐ') counts.signed++;
+            if (status === 'Đã từ chối') counts.rejected++;
+        });
+        document.getElementById('count-all').textContent = counts.all; 
+        document.getElementById('count-new').textContent = counts.new;
+        document.getElementById('count-approaching').textContent = counts.approaching; 
+        document.getElementById('count-replied').textContent = counts.replied;
+        document.getElementById('count-signed').textContent = counts.signed; 
+        document.getElementById('count-rejected').textContent = counts.rejected;
     }
+
     function showEmptyState(show) { 
-        // ... (Giữ nguyên)
+        dom.emptyState.classList.toggle('hidden', !show); 
+        dom.customerDetails.classList.toggle('hidden', show); 
     }
 
     initializeApp();
