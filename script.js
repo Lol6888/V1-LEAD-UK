@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     // !!! QUAN TRỌNG: Dán URL Apps Script MỚI NHẤT của bạn vào đây
-    const API_URL = 'https://script.google.com/macros/s/AKfycbwTZW2LeEbWOnGGwrPeynZ1u5H-tadSAyfdUPkNRes8wVHOQwqnO0hIFoXV8sQ25oI/exec';
+    const API_URL = 'https://script.google.com/macros/s/AKfycbwiAamJ2-qejM0OyOFV47P3_s2dODm7w2IXcM74KIiE7U0PLHMHuYcAN3-aK0P-ylY/exec';
 
     let allCustomers = [];
     let currentFilters = { status: 'all', location: '' };
@@ -182,3 +182,4 @@ document.addEventListener('DOMContentLoaded', () => {
 
     initializeApp();
 });
+
