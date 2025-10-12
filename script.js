@@ -99,7 +99,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
         try {
-            const response = await fetch(API_URL, { method: 'POST', body: JSON.stringify(requestBody) });
+            // SỬA LỖI: Thêm 'headers' vào đây
+            const response = await fetch(API_URL, { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // Dòng quan trọng
+                body: JSON.stringify(requestBody) 
+            });
             const result = await response.json();
             if (result.status !== 'success') throw new Error(result.message);
             const index = allCustomers.findIndex(c => c.ID == requestBody.data.ID);
@@ -116,7 +121,12 @@ document.addEventListener('DOMContentLoaded', () => {
         dom.modal.result.innerHTML = 'Đang gửi yêu cầu đến Gemini...'; dom.modal.overlay.classList.remove('hidden');
         const requestBody = { action: 'analyze', customerId: customerId };
         try {
-            const response = await fetch(API_URL, { method: 'POST', body: JSON.stringify(requestBody) });
+            // SỬA LỖI: Thêm 'headers' vào đây
+            const response = await fetch(API_URL, { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // Dòng quan trọng
+                body: JSON.stringify(requestBody) 
+            });
             const result = await response.json();
             if (result.status !== 'success') throw new Error(result.message);
             dom.modal.result.textContent = result.analysis;
@@ -182,8 +192,3 @@ document.addEventListener('DOMContentLoaded', () => {
 
     initializeApp();
 });
-
-
-
-
-
