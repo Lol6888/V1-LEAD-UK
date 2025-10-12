@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
-// !!! QUAN TRỌNG: Dán URL ứng dụng web của bạn vào đây
-const API_URL = 'https://script.google.com/macros/s/AKfycbwTZW2LeEbWOnGGwrPeynZ1u5H-tadSAyfdUPkNRes8wVHOQwqnO0hIFoXV8sQ25oI/exec';
+    // !!! QUAN TRỌNG: Dán URL ứng dụng web MỚI NHẤT của bạn vào đây
+    const API_URL = 'https://script.google.com/macros/s/AKfycbwTZW2LeEbWOnGGwrPeynZ1u5H-tadSAyfdUPkNRes8wVHOQwqnO0hIFoXV8sQ25oI/exec';
+
     let allCustomers = [];
     let currentFilters = { status: 'all', location: '' };
 
@@ -86,11 +87,19 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbwTZW2LeEbWOnGGwrPeynZ1
 
     // --- UI RENDERING ---
     function filterAndRender() {
-        let filtered = allCustomers.filter(c => 
-            (currentFilters.status === 'all' || c.TrangThai === currentFilters.status) &&
-            (c.TenKhachHang.toLowerCase().includes(currentFilters.location) || c.DiaChi.toLowerCase().includes(currentFilters.location))
-        );
-        renderCustomerList(filtered);
+        try {
+            let filtered = allCustomers.filter(c => {
+                // SỬA LỖI: Thêm (c.TenKhachHang || '') để xử lý các ô trống
+                const nameMatch = (c.TenKhachHang || '').toLowerCase().includes(currentFilters.location);
+                const addressMatch = (c.DiaChi || '').toLowerCase().includes(currentFilters.location);
+                const statusMatch = currentFilters.status === 'all' || c.TrangThai === currentFilters.status;
+                
+                return statusMatch && (nameMatch || addressMatch);
+            });
+            renderCustomerList(filtered);
+        } catch (error) {
+            customerListEl.innerHTML = `<div class="loader" style="color: red;">Không thể tải dữ liệu: ${error.message}</div>`;
+        }
     }
 
     function renderCustomerList(customers) {
@@ -98,8 +107,8 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbwTZW2LeEbWOnGGwrPeynZ1
             ? '<div class="loader">Không tìm thấy khách hàng.</div>'
             : customers.map(c => `
                 <div class="customer-item" data-id="${c.ID}">
-                    <h4>${c.TenKhachHang}</h4>
-                    <p>${c.MaNganh}</p>
+                    <h4>${c.TenKhachHang || 'Khách hàng không tên'}</h4>
+                    <p>${c.MaNganh || 'Không có ngành nghề'}</p>
                     <button class="options-btn"><i class="fa-solid fa-ellipsis-vertical"></i></button>
                 </div>`).join('');
     }
@@ -160,6 +169,3 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbwTZW2LeEbWOnGGwrPeynZ1
         modal.addEventListener('click', e => { if (e.target === modal) modal.classList.add('hidden'); });
     }
 });
-
-
-
