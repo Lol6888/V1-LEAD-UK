@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
 // !!! QUAN TRỌNG: Dán URL ứng dụng web của bạn vào đây
-const API_URL = 'https://script.google.com/macros/s/AKfycbwZF3nrgMI8hGw4U9ijDWPcS_BGBAlnJXk13hM8-aSZpkpMvkCZxF53pUjERjUc3D8/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwTZW2LeEbWOnGGwrPeynZ1u5H-tadSAyfdUPkNRes8wVHOQwqnO0hIFoXV8sQ25oI/exec';
     let allCustomers = [];
     let currentFilters = { status: 'all', location: '' };
 
@@ -160,5 +160,6 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbwZF3nrgMI8hGw4U9ijDWPc
         modal.addEventListener('click', e => { if (e.target === modal) modal.classList.add('hidden'); });
     }
 });
+
 
 
