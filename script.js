@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
         buttons: {
             save: document.getElementById('save-button'),
             analyze: document.getElementById('analyze-btn'),
+            upload: document.getElementById('upload-btn'),
         },
         modal: {
             overlay: document.getElementById('ai-modal'),
@@ -35,6 +36,12 @@ document.addEventListener('DOMContentLoaded', () => {
         spinner: document.querySelector('.spinner'),
         statusNav: document.querySelector('.status-nav'),
         locationSearch: document.getElementById('location-search'),
+        savedAnalysisContainer: document.getElementById('saved-analysis-container'),
+        savedAnalysisContent: document.getElementById('saved-analysis-content'),
+        analyzeBtnText: document.getElementById('analyze-btn-text'),
+        fileInput: document.getElementById('file-input'),
+        fileLinkDisplay: document.getElementById('file-link-display'),
+        uploadProgress: document.getElementById('upload-progress'),
     };
     
     const statusOptions = ['Chưa tiếp cận', 'Đang tiếp cận', 'Đã phản hồi', 'Đã ký HĐ', 'Đã từ chối'];
@@ -84,6 +91,16 @@ document.addEventListener('DOMContentLoaded', () => {
         dom.modal.overlay.addEventListener('click', e => { 
             if (e.target === dom.modal.overlay) dom.modal.overlay.classList.add('hidden'); 
         });
+
+        // File Upload Listeners
+        dom.buttons.upload.addEventListener('click', (e) => {
+            e.preventDefault();
+            dom.fileInput.click();
+        });
+        dom.fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) handleFile(file);
+        });
     }
 
     async function saveChanges() {
@@ -95,14 +112,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 ID: dom.detail.id.value, TrangThai: dom.detail.status.value,
                 Website: dom.detail.website.value.trim(), Facebook: dom.detail.facebook.value.trim(),
                 Instagram: dom.detail.instagram.value.trim(), LinkedIn: dom.detail.linkedin.value.trim(),
-                Khac: dom.detail.khac.value.trim(), GhiChu: dom.detail.ghiChu.value, LinkTep: dom.detail.fileLink.value.trim()
+                Khac: dom.detail.khac.value.trim(), GhiChu: dom.detail.ghiChu.value, 
+                LinkTep: dom.detail.fileLink.value.trim()
             }
         };
         try {
-            // SỬA LỖI: Thêm 'headers' vào đây
             const response = await fetch(API_URL, { 
                 method: 'POST', 
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // Dòng quan trọng
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                 body: JSON.stringify(requestBody) 
             });
             const result = await response.json();
@@ -121,15 +138,20 @@ document.addEventListener('DOMContentLoaded', () => {
         dom.modal.result.innerHTML = 'Đang gửi yêu cầu đến Gemini...'; dom.modal.overlay.classList.remove('hidden');
         const requestBody = { action: 'analyze', customerId: customerId };
         try {
-            // SỬA LỖI: Thêm 'headers' vào đây
             const response = await fetch(API_URL, { 
                 method: 'POST', 
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // Dòng quan trọng
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                 body: JSON.stringify(requestBody) 
             });
             const result = await response.json();
             if (result.status !== 'success') throw new Error(result.message);
             dom.modal.result.textContent = result.analysis;
+            // Cập nhật dữ liệu ngay trên giao diện
+            const index = allCustomers.findIndex(c => c.ID == customerId);
+            if (index !== -1) {
+                allCustomers[index].PhanTich = result.analysis;
+                renderCustomerDetails(customerId); // Render lại để cập nhật
+            }
         } catch (error) { dom.modal.result.textContent = `Lỗi khi phân tích: ${error.message}`; } 
         finally { dom.spinner.classList.add('hidden'); dom.buttons.analyze.disabled = false; }
     }
@@ -166,6 +188,22 @@ document.addEventListener('DOMContentLoaded', () => {
         dom.detail.instagram.value = customer.Instagram || ''; dom.detail.linkedin.value = customer.LinkedIn || '';
         dom.detail.khac.value = customer.Khac || ''; dom.detail.ghiChu.value = customer.GhiChu || '';
         dom.detail.fileLink.value = customer.LinkTep || ''; dom.detail.id.value = customer.ID;
+
+        if (customer.PhanTich && customer.PhanTich.trim() !== "") {
+            dom.savedAnalysisContent.textContent = customer.PhanTich;
+            dom.savedAnalysisContainer.classList.remove('hidden');
+            dom.analyzeBtnText.textContent = "Phân Tích Lại";
+        } else {
+            dom.savedAnalysisContainer.classList.add('hidden');
+            dom.analyzeBtnText.textContent = "Phân Tích Tiềm năng";
+        }
+
+        if (customer.LinkTep && customer.LinkTep.trim() !== "") {
+            dom.fileLinkDisplay.innerHTML = `Tệp đã lưu: <a href="${customer.LinkTep}" target="_blank" title="${customer.LinkTep}">Link</a>`;
+        } else {
+            dom.fileLinkDisplay.textContent = "Kéo và thả tệp vào đây hoặc nhấp để chọn";
+        }
+
         [dom.buttons.save, dom.buttons.analyze, dom.detail.status].forEach(el => el.disabled = false);
     }
 
@@ -190,9 +228,40 @@ document.addEventListener('DOMContentLoaded', () => {
         dom.customerDetails.classList.toggle('hidden', show); 
     }
 
+    function handleFile(file) {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const fileData = e.target.result.split(',')[1];
+            const fileInfo = { fileName: file.name, mimeType: file.type, data: fileData };
+
+            dom.uploadProgress.classList.remove('hidden');
+            dom.fileLinkDisplay.classList.add('hidden');
+            dom.buttons.upload.disabled = true;
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ action: 'uploadFile', data: fileInfo })
+                });
+                const result = await response.json();
+                if (result.status !== 'success') throw new Error(result.message);
+
+                dom.fileLinkDisplay.innerHTML = `Tệp đã tải lên: <a href="${result.fileUrl}" target="_blank" title="${result.fileUrl}">Link</a>`;
+                dom.detail.fileLink.value = result.fileUrl;
+                alert('Tải lên thành công! Nhấn "Lưu Thay đổi" để liên kết tệp này với khách hàng.');
+
+            } catch (error) {
+                alert('Lỗi khi tải tệp lên: ' + error.message);
+            } finally {
+                dom.uploadProgress.classList.add('hidden');
+                dom.fileLinkDisplay.classList.remove('hidden');
+                dom.buttons.upload.disabled = false;
+                dom.fileInput.value = '';
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+
     initializeApp();
 });
-
-
-
-
