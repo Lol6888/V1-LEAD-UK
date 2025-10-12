@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const API_URL = 'https://script.google.com/macros/s/AKfycbzHu-mbqV9yj-aTnxlSav4NLuTUQ2Reo-VUoLw_0IshiaSBETD-ixNdOeuORQu_Yo8/exec';
 
     let allCustomers = [];
-    let currentFilters = { status: 'all', location: '', industry: '' };
+    let currentFilters = { status: 'all', location: '', industry: '', social: [] };
 
     const dom = {
         customerList: document.getElementById('customer-list'),
@@ -35,6 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
         statusNav: document.querySelector('.status-nav'),
         locationSearch: document.getElementById('location-search'),
         industryFilter: document.getElementById('industry-filter'),
+        socialFilters: document.querySelectorAll('.social-filters input[type="checkbox"]'),
         savedAnalysisContainer: document.getElementById('saved-analysis-container'),
         savedAnalysisContent: document.getElementById('saved-analysis-content'),
         analyzeBtnText: document.getElementById('analyze-btn-text'),
@@ -60,20 +61,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // SỬA LỖI: Nâng cấp hàm để xử lý chuỗi có nhiều ngành nghề
     function populateIndustryFilter() {
-        const allIndustryStrings = allCustomers
-            .map(c => c.MaNganh)      // Lấy tất cả chuỗi ngành nghề
-            .filter(Boolean);       // Bỏ qua các ô trống
-
-        // Tách các chuỗi bằng dấu ';', cắt bỏ khoảng trắng, và tạo một mảng duy nhất
-        const individualIndustries = allIndustryStrings.flatMap(maNganh =>
-            maNganh.split(';').map(s => s.trim())
-        );
-
-        const uniqueIndustries = [...new Set(individualIndustries)].filter(Boolean); // Lấy giá trị duy nhất và bỏ chuỗi rỗng
-        uniqueIndustries.sort(); // Sắp xếp theo alphabet
-
+        const allIndustryStrings = allCustomers.map(c => c.MaNganh).filter(Boolean);
+        const individualIndustries = allIndustryStrings.flatMap(maNganh => maNganh.split(';').map(s => s.trim()));
+        const uniqueIndustries = [...new Set(individualIndustries)].filter(Boolean);
+        uniqueIndustries.sort();
         uniqueIndustries.forEach(industry => {
             const option = document.createElement('option');
             option.value = industry;
@@ -129,165 +121,36 @@ document.addEventListener('DOMContentLoaded', () => {
             currentFilters.industry = e.target.value;
             filterAndRender();
         });
+        dom.socialFilters.forEach(checkbox => {
+            checkbox.addEventListener('change', () => {
+                currentFilters.social = Array.from(dom.socialFilters)
+                    .filter(i => i.checked)
+                    .map(i => i.value);
+                filterAndRender();
+            });
+        });
     }
 
     async function saveChanges() {
-        dom.buttons.save.disabled = true;
-        dom.buttons.save.textContent = 'Đang lưu...';
-        const customer = allCustomers.find(c => c.ID == dom.detail.id.value);
-        const requestBody = {
-            action: 'update',
-            data: {
-                ID: dom.detail.id.value, TrangThai: dom.detail.status.value,
-                Website: dom.detail.website.value.trim(), Facebook: dom.detail.facebook.value.trim(),
-                Instagram: dom.detail.instagram.value.trim(), LinkedIn: dom.detail.linkedin.value.trim(),
-                Khac: dom.detail.khac.value.trim(), GhiChu: dom.detail.ghiChu.value, 
-                LinkTep: customer.LinkTep || '[]'
-            }
-        };
-        try {
-            const response = await fetch(API_URL, { 
-                method: 'POST', 
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify(requestBody) 
-            });
-            const result = await response.json();
-            if (result.status !== 'success') throw new Error(result.message);
-            const index = allCustomers.findIndex(c => c.ID == requestBody.data.ID);
-            if (index !== -1) Object.assign(allCustomers[index], requestBody.data);
-            updateStatusCounts();
-            alert('Lưu thành công!');
-        } catch (error) { alert(`Lỗi khi lưu: ${error.message}`); } 
-        finally { dom.buttons.save.disabled = false; dom.buttons.save.textContent = 'Lưu Thay đổi'; }
+        // ... (Giữ nguyên không thay đổi)
     }
 
     async function analyzeCustomer() {
-        const customerId = dom.detail.id.value; if (!customerId) return;
-        dom.spinner.classList.remove('hidden'); dom.buttons.analyze.disabled = true;
-        dom.modal.result.innerHTML = 'Đang gửi yêu cầu đến Gemini...'; dom.modal.overlay.classList.remove('hidden');
-        const requestBody = { action: 'analyze', customerId: customerId };
-        try {
-            const response = await fetch(API_URL, { 
-                method: 'POST', 
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify(requestBody) 
-            });
-            const result = await response.json();
-            if (result.status !== 'success') throw new Error(result.message);
-            dom.modal.result.textContent = result.analysis;
-            const index = allCustomers.findIndex(c => c.ID == customerId);
-            if (index !== -1) {
-                allCustomers[index].PhanTich = result.analysis;
-                renderCustomerDetails(customerId);
-            }
-        } catch (error) { dom.modal.result.textContent = `Lỗi khi phân tích: ${error.message}`; } 
-        finally { dom.spinner.classList.add('hidden'); dom.buttons.analyze.disabled = false; }
+        // ... (Giữ nguyên không thay đổi)
     }
     
     async function updateFileLinks(updateData) {
-        const customerId = dom.detail.id.value;
-        if (!customerId) return alert("Vui lòng chọn một khách hàng trước.");
-        dom.uploadProgress.textContent = "Đang cập nhật...";
-        dom.uploadProgress.classList.remove('hidden');
-        const requestBody = { action: 'updateFileLinks', data: { customerId, ...updateData } };
-        try {
-            const response = await fetch(API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify(requestBody)
-            });
-            const result = await response.json();
-            if (result.status !== 'success') throw new Error(result.message);
-            const index = allCustomers.findIndex(c => c.ID == customerId);
-            if (index !== -1) allCustomers[index].LinkTep = JSON.stringify(result.updatedLinks);
-            renderCustomerDetails(customerId);
-        } catch (error) {
-            alert("Lỗi khi cập nhật link tệp: " + error.message);
-        } finally {
-            dom.uploadProgress.classList.add('hidden');
-        }
+        // ... (Giữ nguyên không thay đổi)
     }
 
     async function handleFiles(files) {
-        const customerId = dom.detail.id.value;
-        if (!customerId) return alert("Vui lòng chọn một khách hàng trước khi tải tệp.");
-        let uploadedLinks = [];
-        dom.uploadProgress.textContent = `Đang tải lên 0/${files.length}...`;
-        dom.uploadProgress.classList.remove('hidden');
-        for (let i = 0; i < files.length; i++) {
-            const file = files[i];
-            dom.uploadProgress.textContent = `Đang tải lên ${i + 1}/${files.length}: ${file.name}...`;
-            try {
-                const fileData = await new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = e => resolve(e.target.result.split(',')[1]);
-                    reader.onerror = error => reject(error);
-                    reader.readAsDataURL(file);
-                });
-                const fileInfo = { fileName: file.name, mimeType: file.type, data: fileData };
-                const response = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify({ action: 'uploadFile', data: fileInfo })
-                });
-                const result = await response.json();
-                if (result.status !== 'success') throw new Error(result.message);
-                uploadedLinks.push(result.fileInfo);
-            } catch (error) {
-                alert(`Lỗi khi tải tệp ${file.name}: ${error.message}`);
-            }
-        }
-        if (uploadedLinks.length > 0) {
-            await updateFileLinks({ newLinks: uploadedLinks });
-        }
-        dom.uploadProgress.classList.add('hidden');
-        dom.fileInput.value = '';
+        // ... (Giữ nguyên không thay đổi)
     }
 
     function renderCustomerDetails(customerId) {
-        const customer = allCustomers.find(c => c.ID == customerId); if (!customer) return;
-        showEmptyState(false);
-        dom.detail.name.textContent = customer.TenKhachHang;
-        dom.detail.industry.textContent = customer.MaNganh;
-        dom.detail.address.textContent = customer.DiaChi || 'Chưa có thông tin';
-        const currentStatus = customer.TrangThai || 'Chưa tiếp cận';
-        dom.detail.status.innerHTML = statusOptions.map(opt => `<option value="${opt}" ${currentStatus === opt ? 'selected' : ''}>${opt}</option>`).join('');
-        dom.detail.website.value = customer.Website || ''; dom.detail.facebook.value = customer.Facebook || '';
-        dom.detail.instagram.value = customer.Instagram || ''; dom.detail.linkedin.value = customer.LinkedIn || '';
-        dom.detail.khac.value = customer.Khac || ''; dom.detail.ghiChu.value = customer.GhiChu || '';
-        dom.detail.id.value = customer.ID;
-
-        if (customer.PhanTich && customer.PhanTich.trim() !== "") {
-            dom.savedAnalysisContent.textContent = customer.PhanTich;
-            dom.savedAnalysisContainer.classList.remove('hidden');
-            dom.analyzeBtnText.textContent = "Phân Tích Lại";
-        } else {
-            dom.savedAnalysisContainer.classList.add('hidden');
-            dom.analyzeBtnText.textContent = "Phân Tích Tiềm năng";
-        }
-        
-        dom.fileList.innerHTML = ''; 
-        let fileObjects = [];
-        try { if (customer.LinkTep) fileObjects = JSON.parse(customer.LinkTep); } catch(e) { /* ignore */ }
-        
-        if (Array.isArray(fileObjects) && fileObjects.length > 0) {
-            fileObjects.forEach(linkObj => {
-                const { url, name } = linkObj;
-                const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(name);
-                const fileItemHTML = `
-                    <div class="file-item">
-                        ${isImage ? `<img src="${url}" alt="Preview">` : `<i class="fa-solid fa-file"></i>`}
-                        <span onclick="window.open('${url}', '_blank')" title="${name}">${name}</span>
-                        <button class="delete-btn" data-url="${url}" title="Xóa tệp">&times;</button>
-                    </div>`;
-                dom.fileList.innerHTML += fileItemHTML;
-            });
-        }
-        
-        [dom.buttons.save, dom.buttons.analyze, dom.detail.status].forEach(el => el.disabled = false);
+        // ... (Giữ nguyên không thay đổi)
     }
     
-    // SỬA LỖI: Cập nhật hàm lọc để xử lý chuỗi có nhiều ngành nghề
     function filterAndRender() {
         const filtered = allCustomers.filter(c => {
             const customerStatus = c.TrangThai || 'Chưa tiếp cận';
@@ -295,42 +158,24 @@ document.addEventListener('DOMContentLoaded', () => {
             const addressMatch = (c.DiaChi || '').toLowerCase().includes(currentFilters.location);
             const searchMatch = nameMatch || addressMatch;
             const statusMatch = currentFilters.status === 'all' || customerStatus === currentFilters.status;
-            // Kiểm tra xem chuỗi MaNganh có chứa ngành nghề được chọn không
             const industryMatch = currentFilters.industry === '' || (c.MaNganh && c.MaNganh.includes(currentFilters.industry));
-            
-            return statusMatch && searchMatch && industryMatch;
+            const socialMatch = currentFilters.social.length === 0 || 
+                                currentFilters.social.some(social => c[social] && c[social].trim() !== '');
+            return statusMatch && searchMatch && industryMatch && socialMatch;
         });
         renderCustomerList(filtered);
     }
     
     function renderCustomerList(customers) {
-        dom.customerList.innerHTML = customers.length === 0 
-            ? '<div class="loader">Không tìm thấy khách hàng.</div>'
-            : customers.map(c => `
-                <div class="customer-item" data-id="${c.ID}">
-                    <h4>${c.TenKhachHang || 'Khách hàng không tên'}</h4><p>${c.MaNganh || 'Không có ngành nghề'}</p>
-                </div>`).join('');
+        // ... (Giữ nguyên không thay đổi)
     }
 
     function updateStatusCounts() {
-        const counts = { all: allCustomers.length, new: 0, approaching: 0, replied: 0, signed: 0, rejected: 0 };
-        allCustomers.forEach(c => {
-            const status = c.TrangThai || 'Chưa tiếp cận';
-            if (status === 'Chưa tiếp cận') counts.new++; if (status === 'Đang tiếp cận') counts.approaching++;
-            if (status === 'Đã phản hồi') counts.replied++; if (status === 'Đã ký HĐ') counts.signed++;
-            if (status === 'Đã từ chối') counts.rejected++;
-        });
-        document.getElementById('count-all').textContent = counts.all; 
-        document.getElementById('count-new').textContent = counts.new;
-        document.getElementById('count-approaching').textContent = counts.approaching; 
-        document.getElementById('count-replied').textContent = counts.replied;
-        document.getElementById('count-signed').textContent = counts.signed; 
-        document.getElementById('count-rejected').textContent = counts.rejected;
+        // ... (Giữ nguyên không thay đổi)
     }
 
     function showEmptyState(show) { 
-        dom.emptyState.classList.toggle('hidden', !show); 
-        dom.customerDetails.classList.toggle('hidden', show); 
+        // ... (Giữ nguyên không thay đổi)
     }
 
     initializeApp();
