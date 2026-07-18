@@ -43,6 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
             save: document.getElementById('save-button'),
             analyze: document.getElementById('analyze-btn'),
             headerSeeMore: document.getElementById('header-see-more-btn'), // Nút xem thêm mới
+            delete: document.getElementById('delete-customer-btn'),
         },
         modal: {
             overlay: document.getElementById('ai-modal'),
@@ -333,6 +334,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Nút chức năng
         dom.buttons.save.addEventListener('click', saveChanges);
         dom.buttons.analyze.addEventListener('click', analyzeCustomer);
+        dom.buttons.delete.addEventListener('click', deleteCustomer);
         dom.buttons.headerSeeMore.addEventListener('click', (e) => { // Gắn sự kiện cho nút mới
              const customerId = e.target.dataset.id;
              if (customerId) {
@@ -476,6 +478,34 @@ document.addEventListener('DOMContentLoaded', () => {
         } finally {
             dom.buttons.save.disabled = false;
             dom.buttons.save.textContent = 'Lưu Thay đổi';
+        }
+    }
+
+    async function deleteCustomer() {
+        const customerId = dom.detail.id.value;
+        const customerIndex = allCustomers.findIndex(c => c.ID == customerId);
+        if (customerIndex === -1) return alert('Lỗi: Không tìm thấy khách hàng hiện tại.');
+
+        const customer = allCustomers[customerIndex];
+        const confirmMessage = `Xóa khách hàng "${customer.TenKhachHang || 'không tên'}"?\n\n`
+            + `Dòng dữ liệu sẽ bị xóa khỏi Google Sheet và KHÔNG thể hoàn tác.\n`
+            + `(Tệp đính kèm trên Drive vẫn được giữ lại.)`;
+        if (!confirm(confirmMessage)) return;
+
+        dom.buttons.delete.disabled = true;
+        dom.buttons.delete.textContent = 'Đang xóa...';
+        try {
+            await postToApi({ action: 'delete', data: { ID: customerId } });
+            allCustomers.splice(customerIndex, 1);
+            updateStatusCounts();
+            filterAndRender();
+            showEmptyState(true);
+        } catch (error) {
+            console.error("Delete Customer Error:", error);
+            alert(`Lỗi khi xóa: ${error.message}`);
+        } finally {
+            dom.buttons.delete.disabled = false;
+            dom.buttons.delete.innerHTML = '<i class="fa-regular fa-trash-can"></i> Xóa';
         }
     }
 
@@ -768,6 +798,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Cập nhật nút Xem thêm trong header
         dom.buttons.headerSeeMore.dataset.id = customerId;
         dom.buttons.headerSeeMore.classList.remove('hidden');
+        dom.buttons.delete.dataset.id = customerId;
+        dom.buttons.delete.classList.remove('hidden');
 
 
         const currentStatus = customer.TrangThai || 'Chưa tiếp cận';

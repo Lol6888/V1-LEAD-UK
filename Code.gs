@@ -52,6 +52,7 @@ function doPost(e) {
     if (request.action === 'uploadFile') return handleFileUpload(request.data);
     if (request.action === 'updateFileLinks') return handleUpdateFileLinks(request.data);
     if (request.action === 'create') return handleCreateCustomer(request.data);
+    if (request.action === 'delete') return handleDeleteCustomer(request.data);
     if (request.action === 'getGroups') return handleGetGroups();
     if (request.action === 'createGroup') return handleCreateGroup(request.data);
     throw new Error("Hành động không hợp lệ.");
@@ -305,6 +306,30 @@ function handleCreateCustomer(data) {
     sheet.appendRow(row);
 
     return createJsonResponse({ status: "success", customer: record });
+  } catch (error) {
+    return createJsonResponse({ status: "error", message: error.toString() });
+  }
+}
+
+// --- XOÁ KHÁCH HÀNG ---
+// Chỉ xoá dòng trong sheet. Tệp đính kèm trên Drive được giữ lại.
+function handleDeleteCustomer(data) {
+  try {
+    const idToDelete = (data && data.ID);
+    if (!idToDelete) throw new Error("Không có ID để xoá.");
+
+    const allData = sheet.getDataRange().getValues();
+    const headers = allData[0];
+    const idColumnIndex = headers.indexOf("ID");
+    if (idColumnIndex === -1) throw new Error("Không tìm thấy cột 'ID'.");
+
+    const rowIndex = allData.findIndex(row => row[idColumnIndex] == idToDelete);
+    if (rowIndex === -1) throw new Error("Không tìm thấy khách hàng với ID: " + idToDelete);
+    if (rowIndex === 0) throw new Error("Không thể xoá dòng tiêu đề.");
+
+    sheet.deleteRow(rowIndex + 1);
+
+    return createJsonResponse({ status: "success", deletedId: idToDelete });
   } catch (error) {
     return createJsonResponse({ status: "error", message: error.toString() });
   }
