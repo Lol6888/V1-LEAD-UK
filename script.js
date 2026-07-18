@@ -261,6 +261,14 @@ document.addEventListener('DOMContentLoaded', () => {
         return trimmed;
     }
 
+    // Form có thể cuộn nên phải kéo ô báo lỗi vào tầm nhìn, nếu không
+    // người dùng bấm nút mà tưởng như không có gì xảy ra.
+    function showFormError(element, message) {
+        element.textContent = message;
+        element.classList.remove('hidden');
+        element.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+
     function escapeHtml(str) {
         return String(str).replace(/[&<>"']/g, ch => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -390,8 +398,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderGroupList();
             } catch (error) {
                 console.error("Create Group Error:", error);
-                dom.groupModal.error.textContent = error.message;
-                dom.groupModal.error.classList.remove('hidden');
+                showFormError(dom.groupModal.error, error.message);
             } finally {
                 dom.groupModal.submit.disabled = false;
                 dom.groupModal.submit.textContent = 'Tạo';
@@ -505,8 +512,7 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         const ten = dom.addModal.fields.TenKhachHang.value.trim();
         if (!ten) {
-            dom.addModal.error.textContent = 'Vui lòng nhập tên khách hàng.';
-            dom.addModal.error.classList.remove('hidden');
+            showFormError(dom.addModal.error, 'Vui lòng nhập tên khách hàng.');
             return;
         }
 
@@ -543,8 +549,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderCustomerDetails(created.ID);
         } catch (error) {
             console.error("Create Customer Error:", error);
-            dom.addModal.error.textContent = `Lỗi khi tạo khách hàng: ${error.message}`;
-            dom.addModal.error.classList.remove('hidden');
+            showFormError(dom.addModal.error, `Lỗi khi tạo khách hàng: ${error.message}`);
         } finally {
             dom.addModal.submit.disabled = false;
             dom.addModal.submitText.textContent = 'Tạo Khách hàng';
