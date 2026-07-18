@@ -15,9 +15,11 @@
                 <button id="close-sidebar-btn" class="sidebar-toggle-btn mobile-only">&times;</button>
                 <h2>Phân tích Tiềm năng Khách hàng</h2>
                 <div class="lang-switcher"><button>EN</button><button class="active">VI</button></div>
+                <button id="add-customer-btn" class="btn-primary btn-block"><i class="fa-solid fa-plus"></i> Thêm Khách hàng</button>
             </header>
             <nav class="status-nav">
                 <a href="#" class="status-item active" data-status="all">Tất cả Khách hàng <span class="count" id="count-all">0</span></a>
+                <a href="#" class="status-item" data-status="moi-them">Khách hàng mới thêm <span class="count" id="count-recent">0</span></a>
                 <a href="#" class="status-item" data-status="Chưa tiếp cận">Chưa tiếp cận <span class="count" id="count-new">0</span></a>
                 <a href="#" class="status-item" data-status="Đang tiếp cận">Đang tiếp cận <span class="count" id="count-approaching">0</span></a>
                 <a href="#" class="status-item" data-status="Đã phản hồi">Đã phản hồi <span class="count" id="count-replied">0</span></a>
@@ -28,6 +30,10 @@
                 <h3>Lọc Khách hàng</h3>
                 <select id="industry-filter"><option value="">Tất cả ngành nghề</option></select>
                 <select id="country-filter"><option value="">Tất cả quốc gia</option></select>
+                <div class="filter-with-action">
+                    <select id="group-filter"><option value="">Tất cả nhóm</option></select>
+                    <button id="manage-groups-btn" class="btn-light btn-icon" title="Tạo nhóm mới"><i class="fa-solid fa-folder-plus"></i></button>
+                </div>
                 <input type="text" id="location-search" placeholder="Tìm theo tên, địa chỉ...">
                 <div class="social-filters">
                     <label><input type="checkbox" name="social" value="Website"> Website</label>
@@ -74,8 +80,14 @@
                          </p>
                     </div>
                     <div class="header-actions">
-                        <label for="detail-status">Trạng thái</label>
-                        <select id="detail-status" disabled></select>
+                        <div class="header-action-item">
+                            <label for="detail-status">Trạng thái</label>
+                            <select id="detail-status" disabled></select>
+                        </div>
+                        <div class="header-action-item">
+                            <label for="detail-nhom">Nhóm</label>
+                            <select id="detail-nhom" disabled></select>
+                        </div>
                     </div>
                 </header>
                 <div class="form-container">
@@ -135,6 +147,74 @@
             <button id="close-details-modal-btn" class="close-btn">&times;</button>
             <h2 id="details-modal-name">Chi tiết Khách hàng</h2>
             <div id="details-modal-content" class="details-modal-grid"></div>
+        </div>
+    </div>
+
+    <div id="add-customer-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <button id="close-add-modal-btn" class="close-btn">&times;</button>
+            <h2><i class="fa-solid fa-user-plus"></i> Thêm Khách hàng mới</h2>
+            <form id="add-customer-form" class="add-form">
+                <div class="form-group">
+                    <label for="new-ten">Tên khách hàng <span class="required">*</span></label>
+                    <input type="text" id="new-ten" required autocomplete="off">
+                </div>
+                <div class="add-form__row">
+                    <div class="form-group"><label for="new-nganh">Ngành nghề</label><input type="text" id="new-nganh" placeholder="Ngăn cách nhiều ngành bằng ;"></div>
+                    <div class="form-group"><label for="new-quocgia">Quốc gia</label><input type="text" id="new-quocgia"></div>
+                </div>
+                <div class="form-group"><label for="new-diachi">Địa chỉ</label><input type="text" id="new-diachi"></div>
+                <div class="add-form__row">
+                    <div class="form-group">
+                        <label for="new-trangthai">Trạng thái</label>
+                        <select id="new-trangthai"></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-nhom">Nhóm</label>
+                        <div class="filter-with-action">
+                            <select id="new-nhom"></select>
+                            <button type="button" id="add-group-inline-btn" class="btn-light btn-icon" title="Tạo nhóm mới"><i class="fa-solid fa-folder-plus"></i></button>
+                        </div>
+                    </div>
+                </div>
+                <div class="add-form__row">
+                    <div class="form-group"><label for="new-website">Website</label><input type="text" id="new-website"></div>
+                    <div class="form-group"><label for="new-facebook">Facebook</label><input type="text" id="new-facebook"></div>
+                </div>
+                <div class="add-form__row">
+                    <div class="form-group"><label for="new-instagram">Instagram</label><input type="text" id="new-instagram"></div>
+                    <div class="form-group"><label for="new-linkedin">LinkedIn</label><input type="text" id="new-linkedin"></div>
+                </div>
+                <div class="form-group"><label for="new-khac">Khác</label><input type="text" id="new-khac"></div>
+                <div class="form-group"><label for="new-ghichu">Ghi chú</label><textarea id="new-ghichu" placeholder="Ghi chú ban đầu về khách hàng này..."></textarea></div>
+                <p id="add-customer-error" class="form-error hidden"></p>
+                <div class="add-form__actions">
+                    <button type="button" id="cancel-add-btn" class="btn-light">Hủy</button>
+                    <button type="submit" id="submit-add-btn" class="btn-primary">
+                        <span id="submit-add-text">Tạo Khách hàng</span>
+                        <span class="spinner hidden" id="add-spinner"></span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="group-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <button id="close-group-modal-btn" class="close-btn">&times;</button>
+            <h2><i class="fa-solid fa-folder-tree"></i> Nhóm Khách hàng</h2>
+            <form id="create-group-form" class="add-form">
+                <div class="form-group">
+                    <label for="new-group-name">Tên nhóm mới</label>
+                    <div class="filter-with-action">
+                        <input type="text" id="new-group-name" placeholder="VD: Chiến dịch Q3, Ưu tiên cao..." autocomplete="off" required>
+                        <button type="submit" id="submit-group-btn" class="btn-primary">Tạo</button>
+                    </div>
+                </div>
+                <p id="group-error" class="form-error hidden"></p>
+            </form>
+            <h4 class="group-list-title">Các nhóm hiện có</h4>
+            <ul id="group-list" class="group-list"></ul>
         </div>
     </div>
 

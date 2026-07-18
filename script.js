@@ -3,7 +3,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const API_URL = 'https://script.google.com/macros/s/AKfycbzHu-mbqV9yj-aTnxlSav4NLuTUQ2Reo-VUoLw_0IshiaSBETD-ixNdOeuORQu_Yo8/exec'; // Giữ nguyên URL từ file bạn cung cấp
 
     let allCustomers = [];
-    let currentFilters = { status: 'all', location: '', industry: '', country: '', social: [] };
+    let allGroups = [];
+    let currentFilters = { status: 'all', location: '', industry: '', country: '', group: '', social: [] };
 
     const dom = {
         mainContainer: document.querySelector('.main-container'),
@@ -23,6 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
             linkedin: document.getElementById('detail-linkedin'),
             khac: document.getElementById('detail-khac'),
             ghiChu: document.getElementById('detail-ghichu'),
+            nhom: document.getElementById('detail-nhom'),
             id: document.getElementById('detail-id'),
             // Header elements
             country: document.getElementById('detail-country'),
@@ -66,9 +68,59 @@ document.addEventListener('DOMContentLoaded', () => {
         uploadProgress: document.getElementById('upload-progress'),
         fileUploadPrompt: document.getElementById('file-upload-prompt'),
         fileList: document.getElementById('file-list'),
+        groupFilter: document.getElementById('group-filter'),
+        addModal: {
+            overlay: document.getElementById('add-customer-modal'),
+            form: document.getElementById('add-customer-form'),
+            openBtn: document.getElementById('add-customer-btn'),
+            close: document.getElementById('close-add-modal-btn'),
+            cancel: document.getElementById('cancel-add-btn'),
+            submit: document.getElementById('submit-add-btn'),
+            submitText: document.getElementById('submit-add-text'),
+            spinner: document.getElementById('add-spinner'),
+            error: document.getElementById('add-customer-error'),
+            inlineGroupBtn: document.getElementById('add-group-inline-btn'),
+            fields: {
+                TenKhachHang: document.getElementById('new-ten'),
+                MaNganh: document.getElementById('new-nganh'),
+                QuocGia: document.getElementById('new-quocgia'),
+                DiaChi: document.getElementById('new-diachi'),
+                TrangThai: document.getElementById('new-trangthai'),
+                Nhom: document.getElementById('new-nhom'),
+                Website: document.getElementById('new-website'),
+                Facebook: document.getElementById('new-facebook'),
+                Instagram: document.getElementById('new-instagram'),
+                LinkedIn: document.getElementById('new-linkedin'),
+                Khac: document.getElementById('new-khac'),
+                GhiChu: document.getElementById('new-ghichu'),
+            },
+        },
+        groupModal: {
+            overlay: document.getElementById('group-modal'),
+            form: document.getElementById('create-group-form'),
+            openBtn: document.getElementById('manage-groups-btn'),
+            close: document.getElementById('close-group-modal-btn'),
+            input: document.getElementById('new-group-name'),
+            submit: document.getElementById('submit-group-btn'),
+            error: document.getElementById('group-error'),
+            list: document.getElementById('group-list'),
+        },
     };
 
     const statusOptions = ['Chưa tiếp cận', 'Đang tiếp cận', 'Đã phản hồi', 'Đã ký HĐ', 'Đã từ chối'];
+
+    // Gửi 1 request POST tới Apps Script và trả về payload đã kiểm tra status.
+    async function postToApi(requestBody) {
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify(requestBody)
+        });
+        if (!response.ok) throw new Error(`API Error: ${response.status}`);
+        const result = await response.json();
+        if (result.status !== 'success') throw new Error(result.message || 'API trả về lỗi không rõ.');
+        return result;
+    }
 
     // --- KHỞI TẠO ỨNG DỤNG ---
     async function initializeApp() {
@@ -97,6 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
                  throw new Error('Không thể đọc dữ liệu từ API (lỗi JSON).');
             }
 
+            await loadGroups();
             populateIndustryFilter();
             populateCountryFilter();
             setupEventListeners();
@@ -152,6 +205,68 @@ document.addEventListener('DOMContentLoaded', () => {
          }
     }
 
+    // --- NHÓM KHÁCH HÀNG ---
+    // Nếu backend chưa có action getGroups, suy ra danh sách nhóm từ dữ liệu
+    // khách hàng để app vẫn chạy được thay vì chết cả trang.
+    async function loadGroups() {
+        try {
+            const result = await postToApi({ action: 'getGroups' });
+            allGroups = Array.isArray(result.groups) ? result.groups : [];
+        } catch (error) {
+            console.warn("Không lấy được danh sách nhóm từ API, suy ra từ dữ liệu khách hàng:", error.message);
+            allGroups = [...new Set(allCustomers.map(c => (c.Nhom || '').trim()).filter(Boolean))];
+        }
+        allGroups.sort((a, b) => a.localeCompare(b, 'vi'));
+        renderGroupOptions();
+    }
+
+    // Đổ danh sách nhóm vào cả 3 chỗ: bộ lọc, form thêm mới, và ô chọn ở chi tiết.
+    function renderGroupOptions() {
+        const optionsHTML = allGroups.map(g => `<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`).join('');
+
+        const keepFilter = dom.groupFilter.value;
+        dom.groupFilter.innerHTML = '<option value="">Tất cả nhóm</option>' + optionsHTML;
+        dom.groupFilter.value = allGroups.includes(keepFilter) ? keepFilter : '';
+
+        const keepNew = dom.addModal.fields.Nhom.value;
+        dom.addModal.fields.Nhom.innerHTML = '<option value="">-- Không thuộc nhóm nào --</option>' + optionsHTML;
+        dom.addModal.fields.Nhom.value = allGroups.includes(keepNew) ? keepNew : '';
+
+        const keepDetail = dom.detail.nhom.value;
+        dom.detail.nhom.innerHTML = '<option value="">-- Không thuộc nhóm nào --</option>' + optionsHTML;
+        dom.detail.nhom.value = allGroups.includes(keepDetail) ? keepDetail : '';
+    }
+
+    function renderGroupList() {
+        if (allGroups.length === 0) {
+            dom.groupModal.list.innerHTML = '<li class="empty">Chưa có nhóm nào. Tạo nhóm đầu tiên ở trên.</li>';
+            return;
+        }
+        dom.groupModal.list.innerHTML = allGroups.map(g => {
+            const count = allCustomers.filter(c => (c.Nhom || '').trim() === g).length;
+            return `<li><span>${escapeHtml(g)}</span><span class="group-count">${count} khách hàng</span></li>`;
+        }).join('');
+    }
+
+    async function createGroup(name) {
+        const trimmed = name.trim();
+        if (!trimmed) throw new Error('Tên nhóm không được để trống.');
+        if (allGroups.some(g => g.toLowerCase() === trimmed.toLowerCase())) {
+            throw new Error(`Nhóm "${trimmed}" đã tồn tại.`);
+        }
+        const result = await postToApi({ action: 'createGroup', data: { name: trimmed } });
+        allGroups = Array.isArray(result.groups) ? result.groups : allGroups.concat([trimmed]);
+        allGroups.sort((a, b) => a.localeCompare(b, 'vi'));
+        renderGroupOptions();
+        return trimmed;
+    }
+
+    function escapeHtml(str) {
+        return String(str).replace(/[&<>"']/g, ch => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        })[ch]);
+    }
+
     // --- GẮN SỰ KIỆN ---
     function setupEventListeners() {
         // Sự kiện lọc
@@ -175,6 +290,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         dom.countryFilter.addEventListener('change', e => {
             currentFilters.country = e.target.value;
+            filterAndRender();
+        });
+        dom.groupFilter.addEventListener('change', e => {
+            currentFilters.group = e.target.value;
             filterAndRender();
         });
         dom.socialFilters.forEach(checkbox => {
@@ -239,6 +358,46 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        // Thêm khách hàng mới
+        dom.addModal.openBtn.addEventListener('click', openAddCustomerModal);
+        dom.addModal.close.addEventListener('click', closeAddCustomerModal);
+        dom.addModal.cancel.addEventListener('click', closeAddCustomerModal);
+        dom.addModal.overlay.addEventListener('click', e => {
+            if (e.target === dom.addModal.overlay) closeAddCustomerModal();
+        });
+        dom.addModal.form.addEventListener('submit', submitNewCustomer);
+        dom.addModal.inlineGroupBtn.addEventListener('click', createGroupFromPrompt);
+
+        // Quản lý nhóm
+        dom.groupModal.openBtn.addEventListener('click', () => {
+            dom.groupModal.error.classList.add('hidden');
+            dom.groupModal.input.value = '';
+            renderGroupList();
+            dom.groupModal.overlay.classList.remove('hidden');
+        });
+        dom.groupModal.close.addEventListener('click', () => dom.groupModal.overlay.classList.add('hidden'));
+        dom.groupModal.overlay.addEventListener('click', e => {
+            if (e.target === dom.groupModal.overlay) dom.groupModal.overlay.classList.add('hidden');
+        });
+        dom.groupModal.form.addEventListener('submit', async e => {
+            e.preventDefault();
+            dom.groupModal.error.classList.add('hidden');
+            dom.groupModal.submit.disabled = true;
+            dom.groupModal.submit.textContent = 'Đang tạo...';
+            try {
+                await createGroup(dom.groupModal.input.value);
+                dom.groupModal.input.value = '';
+                renderGroupList();
+            } catch (error) {
+                console.error("Create Group Error:", error);
+                dom.groupModal.error.textContent = error.message;
+                dom.groupModal.error.classList.remove('hidden');
+            } finally {
+                dom.groupModal.submit.disabled = false;
+                dom.groupModal.submit.textContent = 'Tạo';
+            }
+        });
+
         // Toggle Sidebar (chỉ hoạt động trên mobile)
         dom.openSidebarBtn.addEventListener('click', () => {
             if (window.innerWidth <= 768) {
@@ -280,6 +439,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 Website: dom.detail.website.value.trim(), Facebook: dom.detail.facebook.value.trim(),
                 Instagram: dom.detail.instagram.value.trim(), LinkedIn: dom.detail.linkedin.value.trim(),
                 Khac: dom.detail.khac.value.trim(), GhiChu: dom.detail.ghiChu.value,
+                Nhom: dom.detail.nhom.value,
                 LinkTep: currentLinkTep
             }
         };
@@ -300,6 +460,8 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             updateStatusCounts();
+            filterAndRender();
+            dom.customerList.querySelector(`.customer-item[data-id="${customerId}"]`)?.classList.add('selected');
             alert('Lưu thành công!');
         } catch (error) {
             console.error("Save Changes Error:", error);
@@ -307,6 +469,86 @@ document.addEventListener('DOMContentLoaded', () => {
         } finally {
             dom.buttons.save.disabled = false;
             dom.buttons.save.textContent = 'Lưu Thay đổi';
+        }
+    }
+
+    function openAddCustomerModal() {
+        dom.addModal.form.reset();
+        dom.addModal.error.classList.add('hidden');
+        dom.addModal.fields.TrangThai.innerHTML = statusOptions
+            .map(opt => `<option value="${opt}">${opt}</option>`).join('');
+        // Nếu đang lọc theo 1 nhóm thì mặc định chọn luôn nhóm đó cho tiện
+        renderGroupOptions();
+        if (currentFilters.group) dom.addModal.fields.Nhom.value = currentFilters.group;
+        dom.addModal.overlay.classList.remove('hidden');
+        dom.addModal.fields.TenKhachHang.focus();
+    }
+
+    function closeAddCustomerModal() {
+        dom.addModal.overlay.classList.add('hidden');
+    }
+
+    // Dùng chung cho nút tạo nhóm nhanh trong form thêm khách hàng.
+    async function createGroupFromPrompt() {
+        const name = prompt('Tên nhóm mới:');
+        if (name === null) return;
+        try {
+            const created = await createGroup(name);
+            dom.addModal.fields.Nhom.value = created;
+        } catch (error) {
+            console.error("Create Group Error:", error);
+            alert(`Lỗi khi tạo nhóm: ${error.message}`);
+        }
+    }
+
+    async function submitNewCustomer(e) {
+        e.preventDefault();
+        const ten = dom.addModal.fields.TenKhachHang.value.trim();
+        if (!ten) {
+            dom.addModal.error.textContent = 'Vui lòng nhập tên khách hàng.';
+            dom.addModal.error.classList.remove('hidden');
+            return;
+        }
+
+        dom.addModal.error.classList.add('hidden');
+        dom.addModal.submit.disabled = true;
+        dom.addModal.submitText.textContent = 'Đang tạo...';
+        dom.addModal.spinner.classList.remove('hidden');
+
+        const data = {};
+        Object.keys(dom.addModal.fields).forEach(key => {
+            const value = dom.addModal.fields[key].value;
+            data[key] = key === 'GhiChu' ? value : value.trim();
+        });
+
+        try {
+            const result = await postToApi({ action: 'create', data });
+            // Backend trả về bản ghi đã tạo (kèm ID) -> chèn thẳng vào danh sách
+            const created = result.customer || { ...data, ID: Date.now(), NgayTao: new Date().toISOString() };
+            allCustomers.push(created);
+
+            populateIndustryFilter();
+            populateCountryFilter();
+            updateStatusCounts();
+            closeAddCustomerModal();
+
+            // Nhảy sang tab "Khách hàng mới thêm" và mở luôn khách vừa tạo
+            dom.statusNav.querySelector('.active')?.classList.remove('active');
+            dom.statusNav.querySelector('[data-status="moi-them"]')?.classList.add('active');
+            currentFilters.status = 'moi-them';
+            filterAndRender();
+
+            const newItem = dom.customerList.querySelector(`.customer-item[data-id="${created.ID}"]`);
+            if (newItem) newItem.classList.add('selected');
+            renderCustomerDetails(created.ID);
+        } catch (error) {
+            console.error("Create Customer Error:", error);
+            dom.addModal.error.textContent = `Lỗi khi tạo khách hàng: ${error.message}`;
+            dom.addModal.error.classList.remove('hidden');
+        } finally {
+            dom.addModal.submit.disabled = false;
+            dom.addModal.submitText.textContent = 'Tạo Khách hàng';
+            dom.addModal.spinner.classList.add('hidden');
         }
     }
 
@@ -418,18 +660,33 @@ document.addEventListener('DOMContentLoaded', () => {
                 const nameMatch = (c.TenKhachHang || '').toLowerCase().includes(currentFilters.location);
                 const addressMatch = (c.DiaChi || '').toLowerCase().includes(currentFilters.location);
                 const searchMatch = nameMatch || addressMatch;
-                const statusMatch = currentFilters.status === 'all' || customerStatus === currentFilters.status;
+                const statusMatch = currentFilters.status === 'all'
+                                    || (currentFilters.status === 'moi-them' ? isRecentlyAdded(c) : customerStatus === currentFilters.status);
+                const groupMatch = currentFilters.group === '' || (c.Nhom || '').trim() === currentFilters.group;
                 const industryMatch = currentFilters.industry === '' || (c.MaNganh && c.MaNganh.includes(currentFilters.industry));
                 const countryMatch = currentFilters.country === '' || c.QuocGia === currentFilters.country;
                 const socialMatch = currentFilters.social.length === 0 ||
                                     currentFilters.social.some(social => c[social] && String(c[social]).trim() !== '');
-                return statusMatch && searchMatch && industryMatch && countryMatch && socialMatch;
+                return statusMatch && searchMatch && industryMatch && countryMatch && groupMatch && socialMatch;
             });
+            // Tab "mới thêm" sắp xếp khách mới nhất lên đầu
+            if (currentFilters.status === 'moi-them') {
+                filtered.sort((a, b) => String(b.NgayTao || '').localeCompare(String(a.NgayTao || '')));
+            }
             renderCustomerList(filtered);
         } catch (error) {
             console.error("Error during filtering/rendering:", error);
             dom.customerList.innerHTML = `<div class="loader" style="color: red;">Lỗi hiển thị dữ liệu.</div>`;
         }
+    }
+
+    // "Mới thêm" = được tạo từ app này (có NgayTao) trong vòng 30 ngày gần nhất.
+    const RECENT_DAYS = 30;
+    function isRecentlyAdded(customer) {
+        if (!customer.NgayTao) return false;
+        const created = new Date(customer.NgayTao);
+        if (isNaN(created.getTime())) return false;
+        return (Date.now() - created.getTime()) <= RECENT_DAYS * 24 * 60 * 60 * 1000;
     }
 
     function renderCustomerList(customers) {
@@ -442,9 +699,14 @@ document.addEventListener('DOMContentLoaded', () => {
              const item = document.createElement('div');
              item.className = 'customer-item';
              item.dataset.id = c.ID;
+             const group = (c.Nhom || '').trim();
+             const badges = [];
+             if (isRecentlyAdded(c)) badges.push('<span class="badge badge-new">Mới</span>');
+             if (group) badges.push(`<span class="badge badge-group"><i class="fa-solid fa-folder"></i> ${escapeHtml(group)}</span>`);
              item.innerHTML = `
                  <h4>${c.TenKhachHang || 'Khách hàng không tên'}</h4>
                  <p>${c.MaNganh || 'Không có ngành nghề'}</p>
+                 ${badges.length ? `<div class="badges">${badges.join('')}</div>` : ''}
                  <button class="see-more-btn" data-id="${c.ID}">Xem thêm</button>
              `;
              dom.customerList.appendChild(item);
@@ -515,6 +777,15 @@ document.addEventListener('DOMContentLoaded', () => {
         dom.detail.ghiChu.value = customer.GhiChu || '';
         dom.detail.id.value = customer.ID;
 
+        // Nhóm: nếu nhóm đang lưu chưa có trong danh sách thì vẫn hiện để không mất dữ liệu
+        const customerGroup = (customer.Nhom || '').trim();
+        if (customerGroup && !allGroups.includes(customerGroup)) {
+            allGroups.push(customerGroup);
+            allGroups.sort((a, b) => a.localeCompare(b, 'vi'));
+            renderGroupOptions();
+        }
+        dom.detail.nhom.value = customerGroup;
+
         // Cập nhật Phân tích đã lưu
         if (customer.PhanTich && customer.PhanTich.trim() !== "") {
             dom.savedAnalysisContent.textContent = customer.PhanTich;
@@ -552,7 +823,7 @@ document.addEventListener('DOMContentLoaded', () => {
              if(uploadPromptSpan) uploadPromptSpan.textContent = 'Chưa có tệp nào được đính kèm.';
         }
 
-        [dom.buttons.save, dom.buttons.analyze, dom.detail.status].forEach(el => { if(el) el.disabled = false; });
+        [dom.buttons.save, dom.buttons.analyze, dom.detail.status, dom.detail.nhom].forEach(el => { if(el) el.disabled = false; });
     }
 
     function renderFullDetails(customerId) {
@@ -561,7 +832,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         dom.detailsModal.name.textContent = customer.TenKhachHang || "Chi tiết Khách hàng";
         let contentHTML = '';
-        const preferredOrder = ['ID','TenKhachHang', 'MaNganh', 'QuocGia', 'DiaChi', 'TrangThai', 'Website', 'Facebook', 'Instagram', 'LinkedIn', 'Khac', 'GhiChu', 'PhanTich', 'LinkTep'];
+        const preferredOrder = ['ID','TenKhachHang', 'Nhom', 'MaNganh', 'QuocGia', 'DiaChi', 'TrangThai', 'NgayTao', 'Website', 'Facebook', 'Instagram', 'LinkedIn', 'Khac', 'GhiChu', 'PhanTich', 'LinkTep'];
         const allKeys = Object.keys(customer);
         const orderedKeys = preferredOrder.filter(key => allKeys.includes(key));
         allKeys.forEach(key => { if (!preferredOrder.includes(key)) orderedKeys.push(key); });
@@ -590,6 +861,12 @@ document.addEventListener('DOMContentLoaded', () => {
               else if (key === 'TrangThai') { displayKey = 'Trạng Thái'; value = value !== 'N/A' ? value : 'Chưa tiếp cận'; }
               else if (key === 'GhiChu') { displayKey = 'Ghi Chú'; }
               else if (key === 'QuocGia') { displayKey = 'Quốc Gia'; }
+              else if (key === 'Nhom') { displayKey = 'Nhóm'; }
+              else if (key === 'NgayTao') {
+                  displayKey = 'Ngày Tạo';
+                  const d = new Date(value);
+                  value = isNaN(d.getTime()) ? value : d.toLocaleString('vi-VN');
+              }
               else if (['Website','Facebook','Instagram','LinkedIn','Khac'].includes(key)) {
                   const urlValue = String(value);
                   value = value !== 'N/A' ? `<a href="${urlValue.startsWith('http') ? urlValue : 'https://'+urlValue}" target="_blank">${urlValue}</a>` : value;
@@ -607,13 +884,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.warn("allCustomers is not an array or is empty during updateStatusCounts");
                 return;
             }
-            const counts = { all: allCustomers.length, new: 0, approaching: 0, replied: 0, signed: 0, rejected: 0 };
+            const counts = { all: allCustomers.length, new: 0, approaching: 0, replied: 0, signed: 0, rejected: 0, recent: 0 };
             allCustomers.forEach(c => {
+                if (isRecentlyAdded(c)) counts.recent++;
                 const status = c.TrangThai || 'Chưa tiếp cận';
                 if (status === 'Chưa tiếp cận') counts.new++; if (status === 'Đang tiếp cận') counts.approaching++;
                 if (status === 'Đã phản hồi') counts.replied++; if (status === 'Đã ký HĐ') counts.signed++;
                 if (status === 'Đã từ chối') counts.rejected++;
             });
+            const countRecentEl = document.getElementById('count-recent');
+            if(countRecentEl) countRecentEl.textContent = counts.recent;
             const countAllEl = document.getElementById('count-all');
             const countNewEl = document.getElementById('count-new');
             const countApproachingEl = document.getElementById('count-approaching');
